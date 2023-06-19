@@ -1,0 +1,661 @@
+{
+  "name": "Email",
+  "nodes": [
+    {
+      "parameters": {},
+      "name": "Start",
+      "type": "n8n-nodes-base.start",
+      "typeVersion": 1,
+      "position": [
+        -320,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "format": "resolved",
+        "options": {}
+      },
+      "name": "IMAP Email",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 1,
+      "position": [
+        -300,
+        200
+      ],
+      "credentials": {
+        "imap": {
+          "id": "5",
+          "name": "IMAP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "title": "={{$node[\"IMAP Email\"].binary.attachment_0.fileName}}",
+        "description": "={{$node[\"IMAP Email\"].binary.attachment_0.fileName}}",
+        "tags": "Email",
+        "type": "Email",
+        "source": "Outlook",
+        "sourceRef": "={{$node[\"IMAP Email\"].json[\"messageId\"]}}",
+        "artifactUi": {
+          "artifactValues": [
+            {
+              "dataType": "file",
+              "binaryProperty": "attachment_0"
+            }
+          ]
+        },
+        "additionalFields": {}
+      },
+      "name": "TheHive",
+      "type": "n8n-nodes-base.theHive",
+      "typeVersion": 1,
+      "position": [
+        -20,
+        200
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "theHiveApi": {
+          "id": "1",
+          "name": "The Hive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "promote",
+        "id": "={{$node[\"TheHive\"].json[\"_id\"]}}",
+        "additionalFields": {}
+      },
+      "name": "Create Case",
+      "type": "n8n-nodes-base.theHive",
+      "typeVersion": 1,
+      "position": [
+        280,
+        200
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "theHiveApi": {
+          "id": "1",
+          "name": "The Hive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "case",
+        "operation": "get",
+        "id": "={{$node[\"Create Case\"].json[\"_id\"]}}"
+      },
+      "name": "Case",
+      "type": "n8n-nodes-base.theHive",
+      "typeVersion": 1,
+      "position": [
+        540,
+        200
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "theHiveApi": {
+          "id": "1",
+          "name": "The Hive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "observable",
+        "caseId": "={{$node[\"Case\"].json[\"_id\"]}}",
+        "returnAll": true,
+        "options": {}
+      },
+      "name": "Observable",
+      "type": "n8n-nodes-base.theHive",
+      "typeVersion": 1,
+      "position": [
+        1060,
+        200
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "theHiveApi": {
+          "id": "1",
+          "name": "The Hive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "observable",
+        "operation": "executeAnalyzer",
+        "id": "={{$node[\"Observable\"].json[\"_id\"]}}",
+        "dataType": "file",
+        "analyzers": [
+          "24a64a086a410e1c7d7ace74003c4480::CORTEX"
+        ]
+      },
+      "name": "Analyzer Email",
+      "type": "n8n-nodes-base.theHive",
+      "typeVersion": 1,
+      "position": [
+        1340,
+        200
+      ],
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "credentials": {
+        "theHiveApi": {
+          "id": "1",
+          "name": "The Hive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "job",
+        "operation": "report",
+        "jobId": "={{$node[\"Analyzer Email\"].json[\"cortexJobId\"]}}"
+      },
+      "name": "Cortex",
+      "type": "n8n-nodes-base.cortex",
+      "typeVersion": 1,
+      "position": [
+        1560,
+        200
+      ],
+      "credentials": {
+        "cortexApi": {
+          "id": "2",
+          "name": "Cortex account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{$node[\"Cortex\"].json[\"report\"][\"full\"][\"iocs\"][\"domain\"].length}}",
+              "operation": "larger"
+            },
+            {
+              "value1": "={{$node[\"Cortex\"].json[\"report\"][\"full\"][\"iocs\"][\"email\"].length}}",
+              "operation": "larger"
+            },
+            {
+              "value1": "={{$node[\"Cortex\"].json[\"report\"][\"full\"][\"iocs\"][\"ip\"].length}}",
+              "operation": "larger"
+            }
+          ]
+        },
+        "combineOperation": "any"
+      },
+      "name": "IF",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -20,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "observable",
+        "operation": "create",
+        "caseId": "={{$node[\"Case\"].json[\"_id\"]}}",
+        "dataType": "domain",
+        "data": "={{$node[\"Cortex\"].json[\"report\"][\"full\"][\"iocs\"][\"domain\"]}}",
+        "message": "={{$node[\"Cortex\"].json[\"analyzerName\"]}}",
+        "ioc": true,
+        "status": "Ok",
+        "options": {
+          "tags": "Domain"
+        }
+      },
+      "name": "Update Case Domain",
+      "type": "n8n-nodes-base.theHive",
+      "typeVersion": 1,
+      "position": [
+        420,
+        420
+      ],
+      "credentials": {
+        "theHiveApi": {
+          "id": "1",
+          "name": "The Hive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "observable",
+        "operation": "create",
+        "caseId": "={{$node[\"Case\"].json[\"_id\"]}}",
+        "dataType": "mail",
+        "data": "={{$node[\"Cortex\"].json[\"report\"][\"full\"][\"iocs\"][\"email\"]}}",
+        "message": "={{$node[\"Cortex\"].json[\"analyzerName\"]}}",
+        "ioc": true,
+        "status": "Ok",
+        "options": {
+          "tags": "Domain"
+        }
+      },
+      "name": "Update Case Email",
+      "type": "n8n-nodes-base.theHive",
+      "typeVersion": 1,
+      "position": [
+        420,
+        620
+      ],
+      "credentials": {
+        "theHiveApi": {
+          "id": "1",
+          "name": "The Hive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "observable",
+        "operation": "create",
+        "caseId": "={{$node[\"Case\"].json[\"_id\"]}}",
+        "dataType": "ip",
+        "data": "={{$node[\"Cortex\"].json[\"report\"][\"full\"][\"iocs\"][\"ip\"]}}",
+        "message": "={{$node[\"Cortex\"].json[\"analyzerName\"]}}",
+        "ioc": true,
+        "status": "Ok",
+        "options": {
+          "tags": "Domain"
+        }
+      },
+      "name": "Update Case Ip",
+      "type": "n8n-nodes-base.theHive",
+      "typeVersion": 1,
+      "position": [
+        420,
+        820
+      ],
+      "credentials": {
+        "theHiveApi": {
+          "id": "1",
+          "name": "The Hive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 5,
+        "unit": "seconds"
+      },
+      "name": "Wait",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [
+        800,
+        200
+      ],
+      "webhookId": "ecada1d5-a671-44fc-906e-c64c6f05e760"
+    },
+    {
+      "parameters": {
+        "resource": "observable",
+        "operation": "executeAnalyzer",
+        "id": "={{$node[\"Update Case Email\"].json[\"id\"]}}",
+        "dataType": "mail",
+        "analyzers": [
+          "9902b4e5c58015184b177de13f2151c7::CORTEX"
+        ]
+      },
+      "name": "Email Reputation",
+      "type": "n8n-nodes-base.theHive",
+      "typeVersion": 1,
+      "position": [
+        640,
+        620
+      ],
+      "credentials": {
+        "theHiveApi": {
+          "id": "1",
+          "name": "The Hive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$node[\"Email Reputation\"].json[\"report\"][\"full\"][\"suspicious\"]}}",
+              "value2": "={{false}}"
+            }
+          ],
+          "string": [
+            {
+              "value1": "={{$node[\"Analyze DOMAIN\"].json[\"report\"][\"full\"][\"results\"][0][\"result\"]}}",
+              "operation": "notContains",
+              "value2": "=[Array: []]"
+            },
+            {
+              "value1": "={{$node[\"Analyze IP\"].json[\"report\"][\"full\"][\"results\"][0][\"result\"]}}",
+              "operation": "notContains",
+              "value2": "=[Array: []]"
+            }
+          ]
+        }
+      },
+      "name": "IF1",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        960,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "case",
+        "operation": "update",
+        "id": "={{$node[\"Case\"].json[\"_id\"]}}",
+        "jsonParameters": false,
+        "updateFields": {
+          "resolutionStatus": "FalsePositive",
+          "status": "Resolved"
+        }
+      },
+      "name": "Close case",
+      "type": "n8n-nodes-base.theHive",
+      "typeVersion": 1,
+      "position": [
+        1240,
+        440
+      ],
+      "credentials": {
+        "theHiveApi": {
+          "id": "1",
+          "name": "The Hive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "case",
+        "operation": "update",
+        "id": "={{$node[\"Case\"].json[\"_id\"]}}",
+        "jsonParameters": false,
+        "updateFields": {
+          "resolutionStatus": "Indeterminate",
+          "status": "Open"
+        }
+      },
+      "name": "Inderterminte case",
+      "type": "n8n-nodes-base.theHive",
+      "typeVersion": 1,
+      "position": [
+        1240,
+        840
+      ],
+      "credentials": {
+        "theHiveApi": {
+          "id": "1",
+          "name": "The Hive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "observable",
+        "operation": "executeAnalyzer",
+        "id": "={{$node[\"Update Case Domain\"].json[\"id\"]}}",
+        "dataType": "domain",
+        "analyzers": [
+          "b084bf78d1aea92966b6ef6a4f6193a5::CORTEX",
+          "69bda1b828b81062489cf810dbf07380::CORTEX"
+        ]
+      },
+      "name": "Analyze DOMAIN",
+      "type": "n8n-nodes-base.theHive",
+      "typeVersion": 1,
+      "position": [
+        640,
+        420
+      ],
+      "credentials": {
+        "theHiveApi": {
+          "id": "1",
+          "name": "The Hive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "observable",
+        "operation": "executeAnalyzer",
+        "id": "={{$node[\"Update Case Ip\"].json[\"id\"]}}",
+        "dataType": "ip",
+        "analyzers": [
+          "b084bf78d1aea92966b6ef6a4f6193a5::CORTEX",
+          "69bda1b828b81062489cf810dbf07380::CORTEX"
+        ]
+      },
+      "name": "Analyze IP",
+      "type": "n8n-nodes-base.theHive",
+      "typeVersion": 1,
+      "position": [
+        640,
+        820
+      ],
+      "credentials": {
+        "theHiveApi": {
+          "id": "1",
+          "name": "The Hive account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "IMAP Email": {
+      "main": [
+        [
+          {
+            "node": "TheHive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Case": {
+      "main": [
+        [
+          {
+            "node": "Case",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Case": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TheHive": {
+      "main": [
+        [
+          {
+            "node": "Create Case",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Observable": {
+      "main": [
+        [
+          {
+            "node": "Analyzer Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyzer Email": {
+      "main": [
+        [
+          {
+            "node": "Cortex",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cortex": {
+      "main": [
+        [
+          {
+            "node": "IF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF": {
+      "main": [
+        [
+          {
+            "node": "Update Case Domain",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update Case Email",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update Case Ip",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Observable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Case Ip": {
+      "main": [
+        [
+          {
+            "node": "Analyze IP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Case Email": {
+      "main": [
+        [
+          {
+            "node": "Email Reputation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Case Domain": {
+      "main": [
+        [
+          {
+            "node": "Analyze DOMAIN",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Reputation": {
+      "main": [
+        [
+          {
+            "node": "IF1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF1": {
+      "main": [
+        [
+          {
+            "node": "Close case",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Inderterminte case",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze DOMAIN": {
+      "main": [
+        [
+          {
+            "node": "IF1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze IP": {
+      "main": [
+        [
+          {
+            "node": "IF1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none",
+    "saveExecutionProgress": "DEFAULT",
+    "saveManualExecutions": false
+  },
+  "id": 4
+}
