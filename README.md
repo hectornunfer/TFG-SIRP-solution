@@ -36,3 +36,5 @@ Tras iniciar la plataforma, se tiene acceso a las diferentes aplicaciones en las
 | N8n |  http://x.x.x.x:5678 |  thehive  |  thehive
 | MISP |    https://x.x.x.x:443  | admin@admin.test | admin
 | Wazuh | http://x.x.x.x:444 |  kibanaserver | kibanaserver
+| Zabbix | http://x.x.x.x:8080 |  Admin | zabbix
+| Wazuh | http://x.x.x.x:8082 |   | 
